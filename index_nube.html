@@ -1214,20 +1214,24 @@ function loadState() {
 */
 async function initApp() {
   try {
+    // Intentamos traer los datos de Google Sheets
     const response = await fetch(DB_URL);
     const cloudState = await response.json();
-    if (cloudState && Object.keys(cloudState).length > 0) {
+    
+    // Si la celda A1 tiene datos, los usamos. Si no (es la primera vez), usamos el estado inicial.
+    if (Object.keys(cloudState).length > 0) {
       state = cloudState;
-      state.adminUnlocked = false; // <--- BLOQUEO FORZADO AL CARGAR DE LA NUBE
+      state.adminUnlocked = false;
     }
-  } catch(e) {
-    console.warn("Nube no disponible, usando local.");
-    const s = localStorage.getItem(STORAGE_KEY);
-    if (s) state = JSON.parse(s);
-    state.adminUnlocked = false; // <--- BLOQUEO FORZADO AL CARGAR LOCAL
+  } catch (err) {
+    console.error("No se pudo cargar de la nube, usando memoria local.", err);
+    //const local = localStorage.getItem('polla_state');
+    const local = localStorage.getItem(STORAGE_KEY);
+    if (local) {
+      state = JSON.parse(local);
+      state.adminUnlocked = false;
+    }
   }
-  renderAll();
-}
   
   // Aquí llamas a las funciones que pintan tus pantallas (las que ya tenías)
   renderDashboard();
@@ -1235,7 +1239,8 @@ async function initApp() {
   
 function saveState() {
   // Primero guardamos localmente por si acaso
-  localStorage.setItem('polla_state', JSON.stringify(state));
+  // localStorage.setItem('polla_state', JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   
   // Luego enviamos silenciosamente los datos a Google Sheets
   fetch(DB_URL, {
