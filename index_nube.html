@@ -1195,8 +1195,8 @@ const DB_URL = "https://script.google.com/macros/s/AKfycby-ZUlGjzNbXGsRdt3d7dzUS
 //  STATE
 // ─────────────────────────────────────────
 let state = {
-  participants: ["Juan","María","Carlos","Ana","Luis","Sofía","Pedro","Laura"],
-  drawn: false,
+  participants: ["Robin", "Chama", "Juli", "Milo", "Deivi", "Cris", "Samu", "Lucho"],
+  drawn: true, 
   teamData: {},
   selectedPlayer: 0,
   tierFilter: 0,
@@ -1326,7 +1326,7 @@ function askReset() {
 function doReset() {
   closeConfirmModal();
   state = {
-    participants:["Juan","María","Carlos","Ana","Luis","Sofía","Pedro","Laura"],
+    participants: ["Robin", "Chama", "Juli", "Milo", "Deivi", "Cris", "Samu", "Lucho"],
     drawn:false, teamData:{}, selectedPlayer:0, tierFilter:0,
     adminPin: state.adminPin, // preserve the pin
     adminUnlocked:false,
