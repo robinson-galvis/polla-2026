@@ -1287,6 +1287,13 @@ function shuffle(arr) {
 
 // Ask for confirmation before drawing if a draw already exists
 function askDraw() {
+  // 1. Candado de seguridad absoluto
+  if (!state.adminUnlocked) {
+    showToast('🔒 Solo el administrador puede realizar un nuevo sorteo.', true);
+    return;
+  }
+
+  // 2. Lógica original
   if (state.drawn) {
     showConfirmModal(
       '🎲',
@@ -1389,6 +1396,7 @@ function renderSetup() {
       <div class="participant-input-wrap">
         <span class="participant-num">${i+1}</span>
         <input class="participant-input" value="${esc(p)}"
+          ${!state.adminUnlocked ? 'disabled' : ''}
           oninput="state.participants[${i}]=this.value;saveState()"
           placeholder="Participante ${i+1}" />
       </div>`).join('');
