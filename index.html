@@ -1250,6 +1250,7 @@ function saveState() {
   }).catch(err => console.error("Error al guardar en la nube:", err));
 }
 
+/*  
 function getTeamData(id) {
   if (!state.teamData[id]) state.teamData[id] = { owner:-1, phase:'group', groupPos:'none' };
   return state.teamData[id];
@@ -1260,6 +1261,30 @@ function getTeamPts(id) {
   const gp    = GROUP_POS.find(g => g.value === td.groupPos) || GROUP_POS[0];
   return phase.pts + (td.phase !== 'group' ? gp.pts : 0);
 }
+ */
+
+function getTeamData(id) {
+  if (!state.teamData[id]) {
+    state.teamData[id] = { owner:-1, phase:'group', groupPos:'none', wins:0, draws:0 };
+  }
+  // Parche de seguridad para equipos viejos que no tenían estas variables
+  if (state.teamData[id].wins === undefined) state.teamData[id].wins = 0;
+  if (state.teamData[id].draws === undefined) state.teamData[id].draws = 0;
+  
+  return state.teamData[id];
+}
+
+function getTeamPts(id) {
+  const td = getTeamData(id);
+  const phase = PHASES.find(p => p.value === td.phase) || PHASES[0];
+  const gp    = GROUP_POS.find(g => g.value === td.groupPos) || GROUP_POS[0];
+  
+  // Tu nueva regla matemática: Victorias x 2 + Empates x 1
+  const matchPts = (td.wins * 2) + (td.draws * 1);
+  
+  return phase.pts + (td.phase !== 'group' ? gp.pts : 0) + matchPts;
+}
+  
 function getParticipantPts(i) {
   return ALL_TEAMS.filter(t => getTeamData(t.id).owner === i)
                   .reduce((s,t) => s + getTeamPts(t.id), 0);
@@ -1516,6 +1541,7 @@ function renderAdminPanel() {
       <div class="tch-label" style="text-align:right">Pts</div>
     </div>`;
 
+  /*
   // 4. Renderizado de cada fila de equipo
   const rows = teams.map(t => {
     const td  = getTeamData(t.id);
@@ -1554,6 +1580,66 @@ function renderAdminPanel() {
           <span class="team-pts" style="font-size: 1.1rem; font-weight: 700; color: var(--gold);">${pts}</span>
           <span class="team-pts-label" style="font-size: 0.75rem; color: var(--text3); block">pts</span>
         </div>
+      </div>`;
+  }).join('');
+  */
+
+  // 4. Renderizado de cada fila de equipo
+  const rows = teams.map(t => {
+    const td  = getTeamData(t.id);
+    const pts = getTeamPts(t.id);
+    const owner = td.owner >= 0 ? state.participants[td.owner] : '—';
+    const canBonus = td.phase !== 'group';
+    const tc = TIER_COLORS[t.tier];
+    const tbg = TIER_BG[t.tier];
+    const tbr = TIER_BORDER[t.tier];
+    const pClass = phaseClass(td.phase);
+
+    return `
+      <div class="team-card ${pClass}" style="display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 0.5fr; gap: 12px; align-items: center; padding: 12px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 8px;">
+        
+        <div class="team-card-info" style="display: flex; align-items: center; gap: 12px;">
+          ${flagImg(t.iso)}
+          <div class="team-name-block">
+            <div class="team-name" style="font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+              ${t.name}
+              <span class="tier-mini" style="background:${tbg};color:${tc};border:1px solid ${tbr}; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">
+                ${shieldSvg(7,tc)} ${TIER_NAMES[t.tier]}
+              </span>
+            </div>
+            <div class="team-owner" style="font-size: 0.8rem; color: var(--text3); margin-top: 2px;">👤 ${esc(owner)}</div>
+          </div>
+        </div>
+        
+        <select class="team-select" ${!state.adminUnlocked ? 'disabled' : ''} onchange="updatePhase(${t.id},this.value)" style="font-size: 15px; padding: 6px 10px; border-radius: 6px; background: var(--card2); color: #fff; border: 1px solid var(--border2); width: 100%; cursor: pointer;">
+          ${PHASES.map(p => `<option value="${p.value}" ${td.phase === p.value ? 'selected' : ''}>${p.label} (${p.pts}pts)</option>`).join('')}
+        </select>
+        
+        <select class="team-select" ${(!canBonus || !state.adminUnlocked) ? 'disabled' : ''} onchange="updateGroupPos(${t.id},this.value)" style="font-size: 15px; padding: 6px 10px; border-radius: 6px; background: var(--card2); color: #fff; border: 1px solid var(--border2); width: 100%; cursor: pointer;">
+          ${GROUP_POS.map(g => `<option value="${g.value}" ${td.groupPos === g.value ? 'selected' : ''}>${g.label} (${g.pts > 0 ? '+' : ''}${g.pts}pts)</option>`).join('')}
+        </select>
+        
+        <div class="team-pts-col" style="text-align: right;">
+          <span class="team-pts" style="font-size: 1.1rem; font-weight: 700; color: var(--gold);">${pts}</span>
+          <span class="team-pts-label" style="font-size: 0.75rem; color: var(--text3); display: block;">pts</span>
+        </div>
+
+        <div style="grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 2px; font-size: 0.75rem; color: var(--text2); justify-content: flex-start;">
+          <div style="display: flex; align-items: center; gap: 6px; background: var(--bg3); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);">
+            <span style="font-weight: 600;">Ganados (2pts):</span>
+            <button onclick="adjustMatches(${t.id}, 'win', -1)" ${!state.adminUnlocked ? 'disabled' : ''} style="cursor: pointer; background: var(--card); border: 1px solid var(--border2); color: white; border-radius: 4px; padding: 2px 6px; line-height: 1;">-</button>
+            <span style="font-weight: 800; color: var(--gold); min-width: 14px; text-align: center;">${td.wins}</span>
+            <button onclick="adjustMatches(${t.id}, 'win', 1)" ${!state.adminUnlocked ? 'disabled' : ''} style="cursor: pointer; background: var(--card); border: 1px solid var(--border2); color: white; border-radius: 4px; padding: 2px 6px; line-height: 1;">+</button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px; background: var(--bg3); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);">
+            <span style="font-weight: 600;">Empates (1pt):</span>
+            <button onclick="adjustMatches(${t.id}, 'draw', -1)" ${!state.adminUnlocked ? 'disabled' : ''} style="cursor: pointer; background: var(--card); border: 1px solid var(--border2); color: white; border-radius: 4px; padding: 2px 6px; line-height: 1;">-</button>
+            <span style="font-weight: 800; color: var(--text); min-width: 14px; text-align: center;">${td.draws}</span>
+            <button onclick="adjustMatches(${t.id}, 'draw', 1)" ${!state.adminUnlocked ? 'disabled' : ''} style="cursor: pointer; background: var(--card); border: 1px solid var(--border2); color: white; border-radius: 4px; padding: 2px 6px; line-height: 1;">+</button>
+          </div>
+        </div>
+
       </div>`;
   }).join('');
 
@@ -1703,6 +1789,20 @@ function updateGroupPos(id, v) {
 function selectPlayer(i) { state.selectedPlayer=i; renderMyTeam(); }
 function showPlayer(i)   { state.selectedPlayer=i; showView('myteam'); }
 
+function adjustMatches(id, type, amount) {
+  const td = getTeamData(id);
+  if (type === 'win') {
+    td.wins = Math.max(0, td.wins + amount); // Evita que baje de cero
+  }
+  if (type === 'draw') {
+    td.draws = Math.max(0, td.draws + amount);
+  }
+  saveState(); 
+  renderLeaderboard(); 
+  renderAdminPanel(); 
+  renderMyTeam();
+}
+  
 // ─────────────────────────────────────────
 //  NAVIGATION
 // ─────────────────────────────────────────
